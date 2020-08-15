@@ -78,9 +78,9 @@ server.patch('/bottrade/setting', async (req, res, next) => {
   });
 });
 
-server.listen(process.env.PORT, () => {
+server.listen(3001, () => {
   const port = server.address().port;
-  console.log(`App listening on port ${port}`);
+  console.log(`App listening on port 3001`);
 });
 
 const botTradeFunc = async () => {

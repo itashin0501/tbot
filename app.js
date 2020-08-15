@@ -6,9 +6,9 @@ const zaifApi = new ZaifApi();
 
 let botIntervalId = 0;
 
-let tradeAmount = 0.04;
-let buyPriceDeff = 2000;
-let sellPriceDeff = 2500;
+let tradeAmount = 0.02;
+let buyPriceDeff = 500;
+let sellPriceDeff = 500;
 let orderLimitMinuits = 120;
 
 const restify = require('restify');
@@ -31,7 +31,7 @@ server.post('/bottrade/start', async (req, res, next) => {
     // already started
   } else {
     botTradeFunc();
-    botIntervalId = setInterval(botTradeFunc, 60000);
+    botIntervalId = setInterval(botTradeFunc, 5 * 60 * 1000);
   }
 
   res.send(200, {
@@ -85,52 +85,29 @@ server.listen(process.env.PORT, () => {
 
 const botTradeFunc = async () => {
   console.log('botTradeStart!!');
-  const activeOrders = await zaifApi.getActiveOrders();
+  // const activeOrders = await zaifApi.getActiveOrders();
   const ticker = await zaifApi.getBtcTicker();
   let resultMsg = '';
   let resultDetail = '';
-  if (Object.keys(activeOrders).length > 0) {
-    const orderData = Object.values(activeOrders)[0];
-    // 注文が有るときは指値の調整をするか判定
-    const currentTime = new Date().getTime() / 1000;
-    const orderLimitTime = Number(orderData.timestamp) + orderLimitMinuits * 60; // 注文の有効期限
-    console.log(`currentTime:${currentTime}, orderLimitTime:${orderLimitTime}`);
-    if (currentTime > orderLimitTime) {
-      //注文取り消し
-      const cancelResult = zaifApi.cancelOrder({ orderId: Object.keys(activeOrders)[0] });
-      resultMsg = '注文取り消し';
-      resultDetail = cancelResult;
-    } else {
-      const remainSec = Math.round(orderLimitTime - currentTime);
-      const remainMinuits = Math.floor(remainSec / 60);
-      if (orderData.action == 'bit') {
-        resultMsg = '買い注文あり';
-        resultDetail = { order: orderData, remainMinuits: remainMinuits };
-      } else {
-        resultMsg = '売り注文あり';
-        resultDetail = { order: orderData, remainMinuits: remainMinuits };
-      }
-    }
-  } else {
-    // 注文が無ければ売買を行う
-    const deposit = await zaifApi.getDeposit();
-    if (deposit.btc > tradeAmount) {
-      // BTC保持の場合は売り設定
-      resultMsg = '売り注文';
 
-      const sellPrice = ticker.last + sellPriceDeff;
-      const sellResult = await zaifApi.sellBtc({ amount: tradeAmount, price: sellPrice });
-      resultDetail = sellResult;
-    } else {
-      // BTC保持していない場合は買い設定
-      resultMsg = '買い注文';
-      const buyPrice = ticker.last - buyPriceDeff;
-      const buyResult = await zaifApi.buyBtc({ amount: tradeAmount, price: buyPrice });
-      resultDetail = buyResult;
-    }
-  }
+  // let bidOrder = null;
+  // let askOrder = null;
+  // for (let i = 0; i < Object.keys(activeOrders).length; i++) {
+  //   const orderData = activeOrders[Object.keys(activeOrders)[i]];
+  //   // console.log(Object.keys(activeOrders)[i]);
+  //   if (orderData.action == 'ask') {
+  //     askOrder = orderData;
+  //   } else if (orderData.action == 'bid') {
+  //     bidOrder = orderData;
+  //   }
+  // }
+  let sellPrice = ticker.last + sellPriceDeff;
+  let buyPrice = ticker.last - buyPriceDeff;
+  const lastTradeData = await zaifApi.getLastTrade();
+  await zaifApi.sellBtc({ amount: tradeAmount, price: sellPrice, options: { limit: sellPrice - sellPriceDeff * 2 } });
+
   console.log('botTradeFinished!!');
   return { message: resultMsg, detail: resultDetail };
 };
-
+// botTradeFunc();
 module.exports = server;
